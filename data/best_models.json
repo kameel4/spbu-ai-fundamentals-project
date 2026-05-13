@@ -1,0 +1,8 @@
+{
+  "top_models": [
+    "GradientBoosting",
+    "LogisticRegression"
+  ],
+  "top_1": "GradientBoosting",
+  "top_2": "LogisticRegression"
+}
