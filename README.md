@@ -20,7 +20,6 @@ Dataset files are stored in:
 6. Model comparison
 7. Hyperparameter tuning
 8. Final model evaluation
-9. Fairness and limitations analysis 
 
 Implementation in this repo (notebooks):
 - `src/01_adult_data_cleaning.ipynb`
