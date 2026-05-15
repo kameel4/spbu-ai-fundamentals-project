@@ -6,6 +6,7 @@ from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.model_selection import train_test_split
 
 
 RANDOM_STATE = 42
@@ -31,6 +32,14 @@ COLUMN_NAMES = [
 
 def get_data_dir():
     return Path(__file__).resolve().parents[1] / "data"
+
+
+def get_repo_root():
+    return Path(__file__).resolve().parents[1]
+
+
+def get_artifacts_dir():
+    return get_repo_root() / "data"
 
 
 def load_raw_adult_data(data_dir=None):
@@ -60,6 +69,36 @@ def load_clean_adult_data(data_dir=None):
     df_raw = pd.concat([train_raw, test_raw], ignore_index=True)
 
     return clean_adult_data(df_raw)
+
+
+def get_cleaning_summary(data_dir=None):
+    train_raw, test_raw = load_raw_adult_data(data_dir=data_dir)
+    df_raw = pd.concat([train_raw, test_raw], ignore_index=True)
+
+    stripped = df_raw.copy()
+    for column in stripped.select_dtypes(include="object").columns:
+        stripped[column] = stripped[column].str.strip()
+    stripped = stripped.replace("?", np.nan)
+    stripped["income"] = stripped["income"].str.replace(".", "", regex=False)
+
+    missing_summary = pd.DataFrame({
+        "missing_count": stripped.isna().sum(),
+        "missing_percent": stripped.isna().mean() * 100,
+    })
+    missing_summary = missing_summary[missing_summary["missing_count"] > 0]
+    missing_summary = missing_summary.sort_values("missing_count", ascending=False)
+
+    duplicate_count = stripped.duplicated().sum()
+
+    return {
+        "train_shape": train_raw.shape,
+        "test_shape": test_raw.shape,
+        "raw_shape": df_raw.shape,
+        "clean_shape": clean_adult_data(df_raw).shape,
+        "missing_summary": missing_summary,
+        "rows_with_missing": stripped.isna().any(axis=1).sum(),
+        "duplicate_count": int(duplicate_count),
+    }
 
 
 def add_features(df):
@@ -105,6 +144,35 @@ def make_X_y(df):
     y = df["income"].map({"<=50K": 0, ">50K": 1})
 
     return X, y
+
+
+def prepare_model_data(test_size=0.2, random_state=RANDOM_STATE, data_dir=None):
+    df_clean = load_clean_adult_data(data_dir=data_dir)
+    df_features = add_features(df_clean)
+    X, y = make_X_y(df_features)
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X,
+        y,
+        test_size=test_size,
+        stratify=y,
+        random_state=random_state,
+    )
+
+    numerical_features, categorical_features = get_feature_lists(X_train)
+
+    return {
+        "df_clean": df_clean,
+        "df_features": df_features,
+        "X": X,
+        "y": y,
+        "X_train": X_train,
+        "X_test": X_test,
+        "y_train": y_train,
+        "y_test": y_test,
+        "numerical_features": numerical_features,
+        "categorical_features": categorical_features,
+    }
 
 
 def get_feature_lists(X):
